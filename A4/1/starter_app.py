@@ -2,27 +2,26 @@ import hashlib
 import pickle
 import sqlite3
 import subprocess
-
+import os
 from flask import Flask, request
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = "dev-secret-123"
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY")
 
 DB_PATH = "inventory.db"
 
-
 def get_db():
 	return sqlite3.connect(DB_PATH)
-
 
 @app.route("/item")
 def item():
 	name = request.args.get("name", "")
 	cur = get_db().cursor()
-	cur.execute(f"SELECT id, name, qty FROM items WHERE name = '{name}'")
+	cur.execute(
+		"SELECT id, name, qty FROM items WHERE name = ?",
+		(name,)
+	)
 	return {"rows": cur.fetchall()}
-
-
 
 @app.route("/backup")
 def backup():
@@ -30,13 +29,10 @@ def backup():
 	subprocess.run("tar czf backup.tgz " + folder, shell=True)
 	return "Backup created"
 
-
-
 @app.route("/import", methods=["POST"])
 def import_items():
 	items = pickle.loads(request.data)
 	return {"imported": len(items)}
-
 
 @app.route("/report")
 def report():
